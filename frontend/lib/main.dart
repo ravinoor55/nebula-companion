@@ -58,7 +58,7 @@ class _ChatScreenState extends State<ChatScreen> {
     flutterTts.awaitSpeakCompletion(true);
   }
 
-  void _speakNext() {
+  Future<void> _speakNext() async {
     if (_isSpeaking || _speechQueue.isEmpty) return;
     
     _isSpeaking = true;
@@ -66,17 +66,17 @@ class _ChatScreenState extends State<ChatScreen> {
     
     switch (_currentTone) {
       case "ANGRY":
-        await flutterTts.setPitch(0.7);
-        await flutterTts.setSpeechRate(0.65);
+        await flutterTts.setPitch(0.9);
+        await flutterTts.setSpeechRate(0.55);
         break;
       case "SAD":
-        await flutterTts.setPitch(0.6);
-        await flutterTts.setSpeechRate(0.3);
+        await flutterTts.setPitch(0.85);
+        await flutterTts.setSpeechRate(0.35);
         break;
       case "FLIRTY":
       case "CUTE":
-        await flutterTts.setPitch(1.3);
-        await flutterTts.setSpeechRate(0.45);
+        await flutterTts.setPitch(1.15);
+        await flutterTts.setSpeechRate(0.5);
         break;
       case "NORMAL":
       default:
