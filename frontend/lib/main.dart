@@ -45,6 +45,20 @@ class _ChatScreenState extends State<ChatScreen> {
   
   bool _isGenerating = false;
   Process? _activeProcess;
+  List<String> _speechQueue = [];
+  bool _isSpeaking = false;
+
+  void _speakNext() {
+    if (_isSpeaking || _speechQueue.isEmpty) return;
+    
+    _isSpeaking = true;
+    final sentence = _speechQueue.removeAt(0);
+    
+    Process.run('say', [sentence]).then((_) {
+      _isSpeaking = false;
+      _speakNext();
+    });
+  }
 
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
@@ -72,7 +86,8 @@ class _ChatScreenState extends State<ChatScreen> {
         Match? match;
         while ((match = sentenceRegex.firstMatch(ttsBuffer)) != null) {
           final sentence = match!.group(0)!;
-          Process.start('say', [sentence]);
+          _speechQueue.add(sentence);
+          _speakNext();
           ttsBuffer = ttsBuffer.substring(match.end);
         }
         
@@ -84,7 +99,8 @@ class _ChatScreenState extends State<ChatScreen> {
         if (!mounted) return;
         
         if (ttsBuffer.trim().isNotEmpty) {
-          Process.start('say', [ttsBuffer.trim()]);
+          _speechQueue.add(ttsBuffer.trim());
+          _speakNext();
         }
         
         setState(() {
@@ -120,6 +136,8 @@ class _ChatScreenState extends State<ChatScreen> {
   void _stopGeneration() {
     _activeProcess?.kill();
     _activeProcess = null;
+    _speechQueue.clear();
+    _isSpeaking = false;
     Process.run('killall', ['say']);
     setState(() {
       _isGenerating = false;
