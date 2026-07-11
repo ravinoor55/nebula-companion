@@ -53,7 +53,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    flutterTts.setSpeechRate(0.6);
+    flutterTts.setSpeechRate(0.4);
     flutterTts.awaitSpeakCompletion(true);
   }
 
