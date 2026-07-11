@@ -48,7 +48,6 @@ class _ChatScreenState extends State<ChatScreen> {
   Process? _activeProcess;
   List<String> _speechQueue = [];
   bool _isSpeaking = false;
-  String _currentTone = "NORMAL";
   FlutterTts flutterTts = FlutterTts();
 
   @override
@@ -63,27 +62,6 @@ class _ChatScreenState extends State<ChatScreen> {
     
     _isSpeaking = true;
     final sentence = _speechQueue.removeAt(0);
-    
-    switch (_currentTone) {
-      case "ANGRY":
-        await flutterTts.setPitch(0.9);
-        await flutterTts.setSpeechRate(0.55);
-        break;
-      case "SAD":
-        await flutterTts.setPitch(0.85);
-        await flutterTts.setSpeechRate(0.35);
-        break;
-      case "FLIRTY":
-      case "CUTE":
-        await flutterTts.setPitch(1.15);
-        await flutterTts.setSpeechRate(0.5);
-        break;
-      case "NORMAL":
-      default:
-        await flutterTts.setPitch(1.0);
-        await flutterTts.setSpeechRate(0.5);
-        break;
-    }
     String cleanSentence = sentence.replaceAll(RegExp(r'\[.*?\]'), '').trim();
     if (cleanSentence.isEmpty) {
       _isSpeaking = false;
@@ -105,7 +83,6 @@ class _ChatScreenState extends State<ChatScreen> {
       _messages.add({"role": "user", "content": text});
       _messages.add({"role": "ai", "content": ""});
       _isGenerating = true;
-      _currentTone = "NORMAL";
     });
     
     _controller.clear();
@@ -118,13 +95,6 @@ class _ChatScreenState extends State<ChatScreen> {
         if (!mounted) return;
         
         String chunk = data.replaceAll(RegExp(r'\x1B\[[0-9;]*[a-zA-Z]'), '');
-        
-        final toneRegex = RegExp(r'\[TONE:(ANGRY|SAD|CUTE|FLIRTY|NORMAL)\]');
-        final toneMatch = toneRegex.firstMatch(chunk);
-        if (toneMatch != null) {
-          _currentTone = toneMatch.group(1)!;
-          chunk = chunk.replaceAll(toneRegex, '');
-        }
         
         ttsBuffer += chunk;
         final sentenceRegex = RegExp(r'([^.!?]+[.!?])');
