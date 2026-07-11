@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 void main() {
   runApp(const NebulaApp());
@@ -41,7 +42,9 @@ class _ChatScreenState extends State<ChatScreen> {
   final List<Map<String, String>> _messages = [
     {"role": "ai", "content": "Hey there! How can I help you today?"}
   ];
-  bool _isThinking = false;
+  
+  bool _isGenerating = false;
+  Process? _activeProcess;
 
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
@@ -50,18 +53,28 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() {
       _messages.add({"role": "user", "content": text});
       _messages.add({"role": "ai", "content": ""});
-      _isThinking = false;
+      _isGenerating = true;
     });
     
     _controller.clear();
+    String ttsBuffer = "";
     
     try {
-      final process = await Process.start('python3', ['../core/brain.py', text]);
+      _activeProcess = await Process.start('python3', ['../core/brain.py', text]);
       
-      process.stdout.transform(utf8.decoder).listen((data) {
+      _activeProcess!.stdout.transform(utf8.decoder).listen((data) {
         if (!mounted) return;
         
         String chunk = data.replaceAll(RegExp(r'\x1B\[[0-9;]*[a-zA-Z]'), '');
+        
+        ttsBuffer += chunk;
+        final sentenceRegex = RegExp(r'([^.!?]+[.!?])');
+        Match? match;
+        while ((match = sentenceRegex.firstMatch(ttsBuffer)) != null) {
+          final sentence = match!.group(0)!;
+          Process.start('say', [sentence]);
+          ttsBuffer = ttsBuffer.substring(match.end);
+        }
         
         setState(() {
           final lastIndex = _messages.length - 1;
@@ -69,22 +82,48 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       }, onDone: () {
         if (!mounted) return;
+        
+        if (ttsBuffer.trim().isNotEmpty) {
+          Process.start('say', [ttsBuffer.trim()]);
+        }
+        
         setState(() {
+          _isGenerating = false;
+          _activeProcess = null;
           final lastIndex = _messages.length - 1;
           _messages[lastIndex]["content"] = _messages[lastIndex]["content"]!.trim();
           if (_messages[lastIndex]["content"]!.isEmpty) {
             _messages[lastIndex]["content"] = "No response from AI core.";
           }
         });
+      }, onError: (e) {
+        if (!mounted) return;
+        setState(() {
+          _isGenerating = false;
+          _activeProcess = null;
+          final lastIndex = _messages.length - 1;
+          _messages[lastIndex]["content"] = "Error: $e";
+        });
       });
       
     } catch (e) {
       if (!mounted) return;
       setState(() {
+        _isGenerating = false;
+        _activeProcess = null;
         final lastIndex = _messages.length - 1;
         _messages[lastIndex]["content"] = "Error: $e";
       });
     }
+  }
+
+  void _stopGeneration() {
+    _activeProcess?.kill();
+    _activeProcess = null;
+    Process.run('killall', ['say']);
+    setState(() {
+      _isGenerating = false;
+    });
   }
 
   @override
@@ -104,63 +143,58 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(16.0),
-              itemCount: _messages.length + (_isThinking ? 1 : 0),
+              itemCount: _messages.length,
               itemBuilder: (context, index) {
-                if (_isThinking && index == _messages.length) {
-                  return Align(
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 12.0),
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surface,
-                        borderRadius: BorderRadius.circular(16).copyWith(
-                          bottomLeft: const Radius.circular(0),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          )
-                        ]
-                      ),
-                      child: const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                  );
-                }
                 final msg = _messages[index];
                 final isUser = msg["role"] == "user";
                 return Align(
                   alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 12.0),
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                    decoration: BoxDecoration(
-                      color: isUser ? colorScheme.primary : colorScheme.surface,
-                      borderRadius: BorderRadius.circular(16).copyWith(
-                        bottomRight: isUser ? const Radius.circular(0) : const Radius.circular(16),
-                        bottomLeft: !isUser ? const Radius.circular(0) : const Radius.circular(16),
+                  child: Column(
+                    crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 4.0),
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                        decoration: BoxDecoration(
+                          color: isUser ? colorScheme.primary : colorScheme.surface,
+                          borderRadius: BorderRadius.circular(16).copyWith(
+                            bottomRight: isUser ? const Radius.circular(0) : const Radius.circular(16),
+                            bottomLeft: !isUser ? const Radius.circular(0) : const Radius.circular(16),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            )
+                          ]
+                        ),
+                        child: Text(
+                          msg["content"]!,
+                          style: TextStyle(
+                            color: isUser ? Colors.white : Colors.white.withOpacity(0.9),
+                            fontSize: 14,
+                          ),
+                        ),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        )
-                      ]
-                    ),
-                    child: Text(
-                      msg["content"]!,
-                      style: TextStyle(
-                        color: isUser ? Colors.white : Colors.white.withOpacity(0.9),
-                        fontSize: 14,
-                      ),
-                    ),
+                      if (!isUser && msg["content"]!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12.0),
+                          child: IconButton(
+                            icon: const Icon(Icons.copy, size: 16, color: Colors.grey),
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: msg["content"]!));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Copied to clipboard'), duration: Duration(seconds: 1)),
+                              );
+                            },
+                            constraints: const BoxConstraints(),
+                            padding: EdgeInsets.zero,
+                          ),
+                        ),
+                      if (isUser)
+                        const SizedBox(height: 12.0),
+                    ],
                   ),
                 );
               },
@@ -181,6 +215,18 @@ class _ChatScreenState extends State<ChatScreen> {
             child: SafeArea(
               child: Row(
                 children: [
+                  if (_isGenerating)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 12.0),
+                      child: CircleAvatar(
+                        backgroundColor: Colors.redAccent,
+                        radius: 24,
+                        child: IconButton(
+                          icon: const Icon(Icons.stop, color: Colors.white, size: 24),
+                          onPressed: _stopGeneration,
+                        ),
+                      ),
+                    ),
                   Expanded(
                     child: TextField(
                       controller: _controller,
