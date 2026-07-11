@@ -9,7 +9,7 @@ def main():
         print("Usage: python brain.py <user_message>")
         return
 
-    user_message = sys.argv[1]
+    user_message = " ".join(sys.argv[1:])
     url = "https://text.pollinations.ai/openai/chat/completions"
     
     headers = {
