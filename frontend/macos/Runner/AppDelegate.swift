@@ -32,8 +32,9 @@ class AppDelegate: FlutterAppDelegate {
             if popover.isShown {
                 popover.performClose(sender)
             } else {
+                NSApp.activate(ignoringOtherApps: true)
                 popover.show(relativeTo: button.bounds, of: button, preferredEdge: NSRectEdge.minY)
-                popover.contentViewController?.view.window?.makeKey()
+                self.popover.contentViewController?.view.window?.makeKey()
             }
         }
     }
