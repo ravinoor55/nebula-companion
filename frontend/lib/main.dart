@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
 void main() {
   runApp(const NebulaApp());
@@ -47,6 +48,14 @@ class _ChatScreenState extends State<ChatScreen> {
   Process? _activeProcess;
   List<String> _speechQueue = [];
   bool _isSpeaking = false;
+  FlutterTts flutterTts = FlutterTts();
+
+  @override
+  void initState() {
+    super.initState();
+    flutterTts.setSpeechRate(0.6);
+    flutterTts.awaitSpeakCompletion(true);
+  }
 
   void _speakNext() {
     if (_isSpeaking || _speechQueue.isEmpty) return;
@@ -54,7 +63,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _isSpeaking = true;
     final sentence = _speechQueue.removeAt(0);
     
-    Process.run('say', [sentence]).then((_) {
+    flutterTts.speak(sentence).then((_) {
       _isSpeaking = false;
       _speakNext();
     });
@@ -133,12 +142,12 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  void _stopGeneration() {
+  void _stopGeneration() async {
     _activeProcess?.kill();
     _activeProcess = null;
     _speechQueue.clear();
     _isSpeaking = false;
-    Process.run('killall', ['say']);
+    await flutterTts.stop();
     setState(() {
       _isGenerating = false;
     });
