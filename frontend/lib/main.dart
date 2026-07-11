@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -48,34 +49,40 @@ class _ChatScreenState extends State<ChatScreen> {
     
     setState(() {
       _messages.add({"role": "user", "content": text});
-      _isThinking = true;
+      _messages.add({"role": "ai", "content": ""});
+      _isThinking = false;
     });
     
     _controller.clear();
     
     try {
-      final result = await Process.run('python3', ['../core/brain.py', text]);
+      final process = await Process.start('python3', ['../core/brain.py', text]);
       
-      if (!mounted) return;
-      
-      String output = result.stdout.toString();
-      output = output.replaceAll(RegExp(r'\x1B\[[0-9;]*[a-zA-Z]'), '').trim();
-      
-      if (output.isEmpty && result.stderr.toString().isNotEmpty) {
-        output = "Error: ${result.stderr.toString().trim()}";
-      } else if (output.isEmpty) {
-        output = "No response from AI core.";
-      }
-
-      setState(() {
-        _messages.add({"role": "ai", "content": output});
-        _isThinking = false;
+      process.stdout.transform(utf8.decoder).listen((data) {
+        if (!mounted) return;
+        
+        String chunk = data.replaceAll(RegExp(r'\x1B\[[0-9;]*[a-zA-Z]'), '');
+        
+        setState(() {
+          final lastIndex = _messages.length - 1;
+          _messages[lastIndex]["content"] = (_messages[lastIndex]["content"]! + chunk);
+        });
+      }, onDone: () {
+        if (!mounted) return;
+        setState(() {
+          final lastIndex = _messages.length - 1;
+          _messages[lastIndex]["content"] = _messages[lastIndex]["content"]!.trim();
+          if (_messages[lastIndex]["content"]!.isEmpty) {
+            _messages[lastIndex]["content"] = "No response from AI core.";
+          }
+        });
       });
+      
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _messages.add({"role": "ai", "content": "Error: $e"});
-        _isThinking = false;
+        final lastIndex = _messages.length - 1;
+        _messages[lastIndex]["content"] = "Error: $e";
       });
     }
   }

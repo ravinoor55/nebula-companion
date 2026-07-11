@@ -3,6 +3,7 @@ import json
 import urllib.request
 import re
 import subprocess
+import os
 
 def main():
     if len(sys.argv) < 2:
@@ -42,19 +43,22 @@ def main():
                 conversational_text = reply.replace(cmd_match.group(0), "").strip()
                 if conversational_text:
                     print(conversational_text)
+                    sys.stdout.flush()
                     subprocess.Popen(["say", conversational_text])
                 
                 command_type = cmd_match.group(1).strip()
                 target = cmd_match.group(2).strip()
                 
                 try:
-                    subprocess.run(["./core/executor.sh", command_type, target], check=True)
+                    executor_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "executor.sh")
+                    subprocess.run([executor_path, command_type, target], check=True)
                 except subprocess.CalledProcessError as e:
                     print(f"Error executing command: {e}")
                 except Exception as e:
                     print(f"Failed to execute bash script: {e}")
             else:
                 print(reply)
+                sys.stdout.flush()
                 subprocess.Popen(["say", reply])
     except Exception as e:
         print(f"Error: {e}")
