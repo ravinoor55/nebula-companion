@@ -42,6 +42,7 @@ def main():
                 conversational_text = reply.replace(cmd_match.group(0), "").strip()
                 if conversational_text:
                     print(conversational_text)
+                    subprocess.Popen(["say", conversational_text])
                 
                 command_type = cmd_match.group(1).strip()
                 target = cmd_match.group(2).strip()
@@ -54,6 +55,7 @@ def main():
                     print(f"Failed to execute bash script: {e}")
             else:
                 print(reply)
+                subprocess.Popen(["say", reply])
     except Exception as e:
         print(f"Error: {e}")
 
