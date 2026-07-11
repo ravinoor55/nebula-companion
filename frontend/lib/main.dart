@@ -84,8 +84,14 @@ class _ChatScreenState extends State<ChatScreen> {
         await flutterTts.setSpeechRate(0.5);
         break;
     }
+    String cleanSentence = sentence.replaceAll(RegExp(r'\[.*?\]'), '').trim();
+    if (cleanSentence.isEmpty) {
+      _isSpeaking = false;
+      _speakNext();
+      return;
+    }
     
-    flutterTts.speak(sentence).then((_) {
+    flutterTts.speak(cleanSentence).then((_) {
       _isSpeaking = false;
       _speakNext();
     });
