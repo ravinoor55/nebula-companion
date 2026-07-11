@@ -7,8 +7,10 @@ class AppDelegate: FlutterAppDelegate {
     var statusBarItem: NSStatusItem!
 
     override func applicationDidFinishLaunching(_ aNotification: Notification) {
-        let flutterViewController = FlutterViewController()
-        RegisterGeneratedPlugins(registry: flutterViewController)
+        guard let window = mainFlutterWindow,
+              let flutterViewController = window.contentViewController as? FlutterViewController else {
+            return
+        }
         
         popover = NSPopover()
         popover.contentSize = NSSize(width: 400, height: 600)
@@ -21,10 +23,8 @@ class AppDelegate: FlutterAppDelegate {
             button.action = #selector(togglePopover(_:))
         }
 
-        // Hide default window
-        if let window = mainFlutterWindow {
-            window.close()
-        }
+        // Hide default window instead of closing it
+        window.orderOut(nil)
     }
 
     @objc func togglePopover(_ sender: AnyObject?) {
