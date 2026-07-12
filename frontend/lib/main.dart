@@ -96,6 +96,10 @@ class _ChatScreenState extends State<ChatScreen> {
         
         String chunk = data.replaceAll(RegExp(r'\x1B\[[0-9;]*[a-zA-Z]'), '');
         
+        // Suppress shell errors from bleeding into TTS and UI
+        chunk = chunk.replaceAll(RegExp(r'Unknown command type: .*\n?'), '');
+        chunk = chunk.replaceAll(RegExp(r'Error executing command: .*\n?'), '');
+        
         ttsBuffer += chunk;
         final sentenceRegex = RegExp(r'([^.!?]+[.!?])');
         Match? match;
@@ -110,24 +114,31 @@ class _ChatScreenState extends State<ChatScreen> {
           final lastIndex = _messages.length - 1;
           String newContent = _messages[lastIndex]["content"]! + chunk;
           
-          final musicRegex = RegExp(r'\[CMD:music:([^\]]+)\]');
-          for (final m in musicRegex.allMatches(newContent)) {
-            final command = m.group(1)!;
-            String script = '';
-            if (command == 'play') {
-              script = 'tell application "Music" to play';
-            } else if (command == 'pause') {
-              script = 'tell application "Music" to pause';
-            } else if (command == 'next') {
-              script = 'tell application "Music" to next track';
-            } else if (command == 'prev') {
-              script = 'tell application "Music" to previous track';
-            } else if (command.startsWith('play_song:')) {
-              final songName = command.substring(10);
-              script = 'tell application "Music" to play track "$songName"';
-            }
-            if (script.isNotEmpty) {
-              Process.run('osascript', ['-e', script]);
+          final cmdRegex = RegExp(r'\[CMD:([^:]+):([^\]]+)\]');
+          for (final m in cmdRegex.allMatches(newContent)) {
+            final type = m.group(1)!;
+            final actionPayload = m.group(2)!;
+            
+            if (type == 'music') {
+              final parts = actionPayload.split(':');
+              final action = parts[0];
+              
+              String script = '';
+              if (action == 'play') {
+                script = 'tell application "Music" to play';
+              } else if (action == 'pause') {
+                script = 'tell application "Music" to pause';
+              } else if (action == 'next') {
+                script = 'tell application "Music" to next track';
+              } else if (action == 'prev') {
+                script = 'tell application "Music" to previous track';
+              } else if (action == 'play_song' && parts.length > 1) {
+                final songName = parts.sublist(1).join(':');
+                script = 'tell application "Music" to play track "$songName"';
+              }
+              if (script.isNotEmpty) {
+                Process.run('osascript', ['-e', script]);
+              }
             }
           }
           
