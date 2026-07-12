@@ -108,7 +108,31 @@ class _ChatScreenState extends State<ChatScreen> {
         
         setState(() {
           final lastIndex = _messages.length - 1;
-          _messages[lastIndex]["content"] = (_messages[lastIndex]["content"]! + chunk);
+          String newContent = _messages[lastIndex]["content"]! + chunk;
+          
+          final musicRegex = RegExp(r'\[CMD:music:([^\]]+)\]');
+          for (final m in musicRegex.allMatches(newContent)) {
+            final command = m.group(1)!;
+            String script = '';
+            if (command == 'play') {
+              script = 'tell application "Music" to play';
+            } else if (command == 'pause') {
+              script = 'tell application "Music" to pause';
+            } else if (command == 'next') {
+              script = 'tell application "Music" to next track';
+            } else if (command == 'prev') {
+              script = 'tell application "Music" to previous track';
+            } else if (command.startsWith('play_song:')) {
+              final songName = command.substring(10);
+              script = 'tell application "Music" to play track "$songName"';
+            }
+            if (script.isNotEmpty) {
+              Process.run('osascript', ['-e', script]);
+            }
+          }
+          
+          newContent = newContent.replaceAll(RegExp(r'\[.*?\]'), '');
+          _messages[lastIndex]["content"] = newContent;
         });
       }, onDone: () {
         if (!mounted) return;
