@@ -28,5 +28,9 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Nebula needs access to the microphone to hear your voice.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Nebula needs access to the microphone to hear your voice.</string>
 </dict>
 </plist>
